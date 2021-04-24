@@ -1,6 +1,6 @@
 [package]
 name = "rtab"
-version = "0.1.0"
+version = "0.1.1"
 authors = ["Amelia Clarke <amelia.amok@gmail.com>"]
 edition = "2018"
 description = "A command-line tool for generating tables from CSV."
