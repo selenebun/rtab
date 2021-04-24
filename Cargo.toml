@@ -3,6 +3,10 @@ name = "rtab"
 version = "0.1.0"
 authors = ["Amelia Clarke <amelia.amok@gmail.com>"]
 edition = "2018"
+description = "A command-line tool for generating tables from CSV."
+repository = "https://github.com/rsaihe/rtab"
+license = "MIT"
+categories = ["command-line-utilities"]
 
 [dependencies]
 clap = "2.33"
