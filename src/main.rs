@@ -68,7 +68,9 @@ fn basic_table(records: &[StringRecord]) -> Result<String, Box<dyn Error>> {
         }
 
         // Trim trailing whitespace.
-        output.truncate(output.trim_end().len());
+        let len = output.rfind(|c| !char::is_whitespace(c)).unwrap_or(0) + 1;
+        output.truncate(len);
+
         writeln!(output)?;
     }
 
