@@ -1,0 +1,9 @@
+[package]
+name = "rtab"
+version = "0.1.0"
+authors = ["Amelia Clarke <amelia.amok@gmail.com>"]
+edition = "2018"
+
+[dependencies]
+clap = "2.33"
+csv = "1.1"
