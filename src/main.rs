@@ -64,9 +64,12 @@ fn basic_table(records: &[StringRecord]) -> Result<String, Box<dyn Error>> {
     let mut output = String::new();
     for record in records {
         for (i, field) in record.iter().enumerate() {
-            write!(&mut output, "{:width$}", field, width = widths[i] + 1)?;
+            write!(output, "{:width$}", field, width = widths[i] + 1)?;
         }
-        writeln!(&mut output)?;
+
+        // Trim trailing whitespace.
+        output.truncate(output.trim_end().len());
+        writeln!(output)?;
     }
 
     Ok(output)
