@@ -8,6 +8,102 @@ use csv::{ReaderBuilder, StringRecord, Trim};
 
 type Result<T> = result::Result<T, Box<dyn Error>>;
 
+/// A struct containing all the necessary table data.
+pub struct Table {
+    records: Vec<StringRecord>,
+    widths: Vec<usize>,
+}
+
+impl Table {
+    /// Create a table from a path.
+    pub fn from_path(path: &str) -> Result<Self> {
+        let records = Self::parse_records(path)?;
+        let widths = Self::calculate_widths(&records);
+
+        Ok(Self { records, widths })
+    }
+
+    /// Format a basic table.
+    pub fn basic_format(&self) -> Result<String> {
+        let mut output = String::new();
+        for record in &self.records {
+            for (i, field) in record.iter().enumerate() {
+                write!(output, "{:width$}", field, width = self.widths[i] + 1)?;
+            }
+
+            // Trim trailing whitespace.
+            let len = output.rfind(|c| !char::is_whitespace(c)).unwrap_or(0) + 1;
+            output.truncate(len);
+
+            writeln!(output)?;
+        }
+
+        Ok(output)
+    }
+
+    /// Format a fancy table.
+    pub fn fancy_format(&self) -> Result<String> {
+        let mut output = String::new();
+        for (i, record) in self.records.iter().enumerate() {
+            // Determine characters to use in separator.
+            let (beginning, middle, end) = match i {
+                0 => ("┌", "┬", "┐"),
+                _ => ("├", "┼", "┤"),
+            };
+
+            // Separator.
+            for (j, width) in self.widths.iter().enumerate() {
+                let vertical = match j {
+                    0 => beginning,
+                    _ => middle,
+                };
+                write!(output, "{}{:─<width$}", vertical, "", width = width + 2)?;
+            }
+            writeln!(output, "{}", end)?;
+
+            // Table data.
+            for (j, field) in record.iter().enumerate() {
+                write!(output, "│ {:width$} ", field, width = self.widths[j])?;
+            }
+            writeln!(output, "│")?;
+        }
+
+        // Final separator.
+        for (i, width) in self.widths.iter().enumerate() {
+            let vertical = match i {
+                0 => "└",
+                _ => "┴",
+            };
+            write!(output, "{}{:─<width$}", vertical, "", width = width + 2)?;
+        }
+        writeln!(output, "┘")?;
+
+        Ok(output)
+    }
+
+    /// Calculate widths of each record.
+    fn calculate_widths(records: &[StringRecord]) -> Vec<usize> {
+        // Find the maximum width per column.
+        let len = records.first().map_or(0, |r| r.len());
+        records.iter().fold(vec![0; len], |acc, r| {
+            acc.iter()
+                .zip(r.iter())
+                .map(|e| (*e.0).max(e.1.len()))
+                .collect()
+        })
+    }
+
+    /// Read records from a file.
+    fn parse_records(path: &str) -> csv::Result<Vec<StringRecord>> {
+        ReaderBuilder::new()
+            .has_headers(false)
+            .trim(Trim::All)
+            .from_path(path)?
+            .records()
+            .collect()
+    }
+}
+
 fn main() {
     let matches = App::new("rtab")
         .version(crate_version!())
@@ -23,22 +119,18 @@ fn main() {
         )
         .get_matches();
 
-    // Open input file for reading.
+    // Parse table from CSV data.
     let path = matches.value_of("FILE").unwrap();
-    let records = match parse_records(path) {
-        Ok(records) => records,
-        Err(e) => {
-            eprintln!("Error parsing file: {}", e);
-            process::exit(1);
-        }
-    };
+    let table = Table::from_path(path).unwrap_or_else(|e| {
+        eprintln!("Error parsing file: {}", e);
+        process::exit(1);
+    });
 
     // Generate formatted table.
     let style = matches.value_of("STYLE").unwrap_or("basic");
-    let widths = calculate_widths(&records);
     let output = match style {
-        "basic" => basic_table(&records, &widths),
-        "fancy" => fancy_table(&records, &widths),
+        "basic" => table.basic_format(),
+        "fancy" => table.fancy_format(),
         _ => unreachable!(),
     };
 
@@ -50,86 +142,4 @@ fn main() {
             process::exit(1);
         }
     }
-}
-
-/// Generate a basic table.
-fn basic_table(records: &[StringRecord], widths: &[usize]) -> Result<String> {
-    // Build output string.
-    let mut output = String::new();
-    for record in records {
-        for (i, field) in record.iter().enumerate() {
-            write!(output, "{:width$}", field, width = widths[i] + 1)?;
-        }
-
-        // Trim trailing whitespace.
-        let len = output.rfind(|c| !char::is_whitespace(c)).unwrap_or(0) + 1;
-        output.truncate(len);
-
-        writeln!(output)?;
-    }
-
-    Ok(output)
-}
-
-/// Calculate widths of each record.
-fn calculate_widths(records: &[StringRecord]) -> Vec<usize> {
-    // Find the maximum width per column.
-    let length = records.first().map_or(0, |r| r.len());
-    records.iter().fold(vec![0; length], |acc, r| {
-        acc.iter()
-            .zip(r.iter())
-            .map(|e| (*e.0).max(e.1.len()))
-            .collect()
-    })
-}
-
-/// Generate a fancy table.
-fn fancy_table(records: &[StringRecord], widths: &[usize]) -> Result<String> {
-    // Build output string.
-    let mut output = String::new();
-    for (i, record) in records.iter().enumerate() {
-        // Determine correct character set.
-        let (beginning, middle, end) = match i {
-            0 => ("┌", "┬", "┐"),
-            _ => ("├", "┼", "┤"),
-        };
-
-        // Separator.
-        for (j, width) in widths.iter().enumerate() {
-            let vertical = match j {
-                0 => beginning,
-                _ => middle,
-            };
-            write!(output, "{}{:─<width$}", vertical, "", width = width + 2)?;
-        }
-        writeln!(output, "{}", end)?;
-
-        // Table data.
-        for (j, field) in record.iter().enumerate() {
-            write!(output, "│ {:width$} ", field, width = widths[j])?;
-        }
-        writeln!(output, "│")?;
-    }
-
-    // Final separator.
-    for (i, width) in widths.iter().enumerate() {
-        let vertical = match i {
-            0 => "└",
-            _ => "┴",
-        };
-        write!(output, "{}{:─<width$}", vertical, "", width = width + 2)?;
-    }
-    writeln!(output, "┘")?;
-
-    Ok(output)
-}
-
-/// Read records from file.
-fn parse_records(path: &str) -> csv::Result<Vec<StringRecord>> {
-    ReaderBuilder::new()
-        .has_headers(false)
-        .trim(Trim::All)
-        .from_path(path)?
-        .records()
-        .collect()
 }
