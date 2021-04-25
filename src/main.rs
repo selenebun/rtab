@@ -1,9 +1,12 @@
 use std::error::Error;
 use std::fmt::Write;
 use std::process;
+use std::result;
 
 use clap::{crate_authors, crate_version, App, Arg};
 use csv::{ReaderBuilder, StringRecord, Trim};
+
+type Result<T> = result::Result<T, Box<dyn Error>>;
 
 fn main() {
     let matches = App::new("rtab")
@@ -16,7 +19,7 @@ fn main() {
                 .long("style")
                 .help("Sets table style")
                 .takes_value(true)
-                .possible_values(&["basic"]),
+                .possible_values(&["basic", "fancy"]),
         )
         .get_matches();
 
@@ -35,6 +38,7 @@ fn main() {
     let widths = calculate_widths(&records);
     let output = match style {
         "basic" => basic_table(&records, &widths),
+        "fancy" => fancy_table(&records, &widths),
         _ => unreachable!(),
     };
 
@@ -49,7 +53,7 @@ fn main() {
 }
 
 /// Generate a basic table.
-fn basic_table(records: &[StringRecord], widths: &[usize]) -> Result<String, Box<dyn Error>> {
+fn basic_table(records: &[StringRecord], widths: &[usize]) -> Result<String> {
     // Build output string.
     let mut output = String::new();
     for record in records {
@@ -77,6 +81,47 @@ fn calculate_widths(records: &[StringRecord]) -> Vec<usize> {
             .map(|e| (*e.0).max(e.1.len()))
             .collect()
     })
+}
+
+/// Generate a fancy table.
+fn fancy_table(records: &[StringRecord], widths: &[usize]) -> Result<String> {
+    // Build output string.
+    let mut output = String::new();
+    for (i, record) in records.iter().enumerate() {
+        // Determine correct character set.
+        let (beginning, middle, end) = match i {
+            0 => ("┌", "┬", "┐"),
+            _ => ("├", "┼", "┤"),
+        };
+
+        // Separator.
+        for (j, width) in widths.iter().enumerate() {
+            let vertical = match j {
+                0 => beginning,
+                _ => middle,
+            };
+            write!(output, "{}{:─<width$}", vertical, "", width = width + 2)?;
+        }
+        writeln!(output, "{}", end)?;
+
+        // Table data.
+        for (j, field) in record.iter().enumerate() {
+            write!(output, "│ {:width$} ", field, width = widths[j])?;
+        }
+        writeln!(output, "│")?;
+    }
+
+    // Final separator.
+    for (i, width) in widths.iter().enumerate() {
+        let vertical = match i {
+            0 => "└",
+            _ => "┴",
+        };
+        write!(output, "{}{:─<width$}", vertical, "", width = width + 2)?;
+    }
+    writeln!(output, "┘")?;
+
+    Ok(output)
 }
 
 /// Read records from file.
