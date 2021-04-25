@@ -42,24 +42,31 @@ impl Table {
     }
 
     /// Format a fancy table.
-    pub fn fancy_format(&self) -> Result<String> {
+    pub fn fancy_format(&self, headers: bool, separators: bool) -> Result<String> {
         let mut output = String::new();
-        for (i, record) in self.records.iter().enumerate() {
-            // Determine characters to use in separator.
-            let (beginning, middle, end) = match i {
-                0 => ("┌", "┬", "┐"),
-                _ => ("├", "┼", "┤"),
-            };
 
+        // Initial separator.
+        for (i, width) in self.widths.iter().enumerate() {
+            let vertical = match i {
+                0 => "┌",
+                _ => "┬",
+            };
+            write!(output, "{}{:─<width$}", vertical, "", width = width + 2)?;
+        }
+        writeln!(output, "┐")?;
+
+        for (i, record) in self.records.iter().enumerate() {
             // Separator.
-            for (j, width) in self.widths.iter().enumerate() {
-                let vertical = match j {
-                    0 => beginning,
-                    _ => middle,
-                };
-                write!(output, "{}{:─<width$}", vertical, "", width = width + 2)?;
+            if (separators && i > 0) || (headers && i == 1) {
+                for (j, width) in self.widths.iter().enumerate() {
+                    let vertical = match j {
+                        0 => "├",
+                        _ => "┼",
+                    };
+                    write!(output, "{}{:─<width$}", vertical, "", width = width + 2)?;
+                }
+                writeln!(output, "┤")?;
             }
-            writeln!(output, "{}", end)?;
 
             // Table data.
             for (j, field) in record.iter().enumerate() {
@@ -117,6 +124,18 @@ fn main() {
                 .takes_value(true)
                 .possible_values(&["basic", "fancy"]),
         )
+        .arg(
+            Arg::with_name("headers")
+                .long("headers")
+                .short("h")
+                .help("Use separators for first row in fancy tables"),
+        )
+        .arg(
+            Arg::with_name("separators")
+                .long("separators")
+                .short("s")
+                .help("Use no separators for fancy tables"),
+        )
         .get_matches();
 
     // Parse table from CSV data.
@@ -128,9 +147,11 @@ fn main() {
 
     // Generate formatted table.
     let style = matches.value_of("STYLE").unwrap_or("basic");
+    let headers = matches.is_present("headers");
+    let separators = matches.is_present("separators");
     let output = match style {
         "basic" => table.basic_format(),
-        "fancy" => table.fancy_format(),
+        "fancy" => table.fancy_format(headers, separators),
         _ => unreachable!(),
     };
 
