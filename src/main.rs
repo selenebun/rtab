@@ -32,8 +32,9 @@ fn main() {
 
     // Generate formatted table.
     let style = matches.value_of("STYLE").unwrap_or("basic");
+    let widths = calculate_widths(&records);
     let output = match style {
-        "basic" => basic_table(&records),
+        "basic" => basic_table(&records, &widths),
         _ => unreachable!(),
     };
 
@@ -48,18 +49,7 @@ fn main() {
 }
 
 /// Generate a basic table.
-fn basic_table(records: &[StringRecord]) -> Result<String, Box<dyn Error>> {
-    // Calculate the length of each record.
-    let len = records.first().map_or(0, |r| r.len());
-
-    // Find the maximum width in each column.
-    let widths = records.iter().fold(vec![0; len], |acc, r| {
-        acc.iter()
-            .zip(r.iter())
-            .map(|e| (*e.0).max(e.1.len()))
-            .collect()
-    });
-
+fn basic_table(records: &[StringRecord], widths: &[usize]) -> Result<String, Box<dyn Error>> {
     // Build output string.
     let mut output = String::new();
     for record in records {
@@ -75,6 +65,18 @@ fn basic_table(records: &[StringRecord]) -> Result<String, Box<dyn Error>> {
     }
 
     Ok(output)
+}
+
+/// Calculate widths of each record.
+fn calculate_widths(records: &[StringRecord]) -> Vec<usize> {
+    // Find the maximum width per column.
+    let length = records.first().map_or(0, |r| r.len());
+    records.iter().fold(vec![0; length], |acc, r| {
+        acc.iter()
+            .zip(r.iter())
+            .map(|e| (*e.0).max(e.1.len()))
+            .collect()
+    })
 }
 
 /// Read records from file.
