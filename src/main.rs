@@ -142,50 +142,50 @@ fn main() {
         .version(crate_version!())
         .author(crate_authors!())
         .about("Generate tables from CSV.")
-        .arg(Arg::with_name("FILE").required(true))
+        .arg(Arg::with_name("file").required(true).value_name("FILE"))
         .arg(
-            Arg::with_name("STYLE")
+            Arg::with_name("style")
                 .long("style")
                 .help("Sets table style")
                 .takes_value(true)
                 .possible_values(&["basic", "fancy"])
                 .default_value("basic")
-                .hide_default_value(true),
+                .hide_default_value(true)
+                .value_name("STYLE"),
         )
         .arg(
             Arg::with_name("headers")
                 .long("headers")
-                .short("h")
                 .help("Use separators for first row in fancy tables"),
         )
         .arg(
             Arg::with_name("separators")
                 .long("separators")
-                .short("s")
                 .help("Use no separators for fancy tables"),
         )
         .arg(
-            Arg::with_name("SPACES")
+            Arg::with_name("spaces")
                 .long("spaces")
-                .short("p")
+                .short("s")
                 .help("Number of spaces to use between fields")
                 .takes_value(true)
-                .default_value("1"),
+                .default_value("1")
+                .value_name("SPACES"),
         )
         .get_matches();
 
     // Parse table from CSV data.
-    let path = matches.value_of("FILE").unwrap();
+    let path = matches.value_of("file").unwrap();
     let table = Table::from_path(path).unwrap_or_else(|e| {
         eprintln!("Error parsing file: {}", e);
         process::exit(1);
     });
 
     // Generate formatted table.
-    let style = matches.value_of("STYLE").unwrap_or("basic");
+    let style = matches.value_of("style").unwrap_or("basic");
     let headers = matches.is_present("headers");
     let separators = matches.is_present("separators");
-    let spaces = matches.value_of("SPACES").unwrap().parse().unwrap_or(1);
+    let spaces = matches.value_of("spaces").unwrap().parse().unwrap_or(1);
     let output = match style {
         "basic" => table.basic_format(spaces),
         "fancy" => table.fancy_format(headers, separators, spaces),
