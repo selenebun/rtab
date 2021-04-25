@@ -24,11 +24,11 @@ impl Table {
     }
 
     /// Format a basic table.
-    pub fn basic_format(&self) -> Result<String> {
+    pub fn basic_format(&self, spaces: usize) -> Result<String> {
         let mut output = String::new();
         for record in &self.records {
             for (i, field) in record.iter().enumerate() {
-                write!(output, "{:width$}", field, width = self.widths[i] + 1)?;
+                write!(output, "{:width$}", field, width = self.widths[i] + spaces)?;
             }
 
             // Trim trailing whitespace.
@@ -42,7 +42,7 @@ impl Table {
     }
 
     /// Format a fancy table.
-    pub fn fancy_format(&self, headers: bool, separators: bool) -> Result<String> {
+    pub fn fancy_format(&self, headers: bool, separators: bool, spaces: usize) -> Result<String> {
         let mut output = String::new();
 
         // Initial separator.
@@ -51,7 +51,13 @@ impl Table {
                 0 => "┌",
                 _ => "┬",
             };
-            write!(output, "{}{:─<width$}", vertical, "", width = width + 2)?;
+            write!(
+                output,
+                "{}{:─<width$}",
+                vertical,
+                "",
+                width = width + spaces * 2
+            )?;
         }
         writeln!(output, "┐")?;
 
@@ -63,14 +69,28 @@ impl Table {
                         0 => "├",
                         _ => "┼",
                     };
-                    write!(output, "{}{:─<width$}", vertical, "", width = width + 2)?;
+                    write!(
+                        output,
+                        "{}{:─<width$}",
+                        vertical,
+                        "",
+                        width = width + spaces * 2
+                    )?;
                 }
                 writeln!(output, "┤")?;
             }
 
             // Table data.
             for (j, field) in record.iter().enumerate() {
-                write!(output, "│ {:width$} ", field, width = self.widths[j])?;
+                write!(
+                    output,
+                    "│{:<spaces$}{:width$}{:<spaces$}",
+                    "",
+                    field,
+                    "",
+                    spaces = spaces,
+                    width = self.widths[j]
+                )?;
             }
             writeln!(output, "│")?;
         }
@@ -81,7 +101,13 @@ impl Table {
                 0 => "└",
                 _ => "┴",
             };
-            write!(output, "{}{:─<width$}", vertical, "", width = width + 2)?;
+            write!(
+                output,
+                "{}{:─<width$}",
+                vertical,
+                "",
+                width = width + spaces * 2
+            )?;
         }
         writeln!(output, "┘")?;
 
@@ -122,7 +148,9 @@ fn main() {
                 .long("style")
                 .help("Sets table style")
                 .takes_value(true)
-                .possible_values(&["basic", "fancy"]),
+                .possible_values(&["basic", "fancy"])
+                .default_value("basic")
+                .hide_default_value(true),
         )
         .arg(
             Arg::with_name("headers")
@@ -135,6 +163,14 @@ fn main() {
                 .long("separators")
                 .short("s")
                 .help("Use no separators for fancy tables"),
+        )
+        .arg(
+            Arg::with_name("SPACES")
+                .long("spaces")
+                .short("p")
+                .help("Number of spaces to use between fields")
+                .takes_value(true)
+                .default_value("1"),
         )
         .get_matches();
 
@@ -149,9 +185,10 @@ fn main() {
     let style = matches.value_of("STYLE").unwrap_or("basic");
     let headers = matches.is_present("headers");
     let separators = matches.is_present("separators");
+    let spaces = matches.value_of("SPACES").unwrap().parse().unwrap_or(1);
     let output = match style {
-        "basic" => table.basic_format(),
-        "fancy" => table.fancy_format(headers, separators),
+        "basic" => table.basic_format(spaces),
+        "fancy" => table.fancy_format(headers, separators, spaces),
         _ => unreachable!(),
     };
 
