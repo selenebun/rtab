@@ -161,7 +161,7 @@ fn main() {
         .arg(
             Arg::with_name("separators")
                 .long("separators")
-                .help("Use no separators for fancy tables"),
+                .help("Use separators for all rows in fancy tables"),
         )
         .arg(
             Arg::with_name("spaces")
